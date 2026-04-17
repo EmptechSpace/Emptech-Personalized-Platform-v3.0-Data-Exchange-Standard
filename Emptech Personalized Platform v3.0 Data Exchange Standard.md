@@ -1,18 +1,17 @@
-```markdown
 # Production Management System API Documentation - Personalization System Integration
 
 > **Document Version**: v1.0  
 > **Target Audience**: Personalization System Developers  
 > **Protocol**: HTTP RESTful + JSON  
-> **Authentication**: Basic Auth + Bearer Token
+> **Authentication Method**: Basic Auth + Bearer Token
 
 ---
 
 ## Table of Contents
 
-1. [API Specification](#1-api-specification)
+1. [API Specification Guidelines](#1-api-specification-guidelines)
 2. [Authentication API](#2-authentication-api)
-3. [Task Pull API](#3-task-pull-api)
+3. [Task Retrieval API](#3-task-retrieval-api)
 4. [Batch Confirmation API](#4-batch-confirmation-api)
 5. [Batch Feedback API](#5-batch-feedback-api)
 6. [Heartbeat and Status API](#6-heartbeat-and-status-api)
@@ -21,23 +20,23 @@
 
 ---
 
-## 1. API Specification
+## 1. API Specification Guidelines
 
-### 1.1 API Path Convention
+### 1.1 API Path Conventions
 
 | API Type | Path Prefix | Example |
-| --- | --- | --- |
+|----------|-------------|---------|
 | Authentication API | `/open-api/mes/auth/**` | `/open-api/mes/auth/token` |
 | Business API | `/open-api/mes/personalization/**` | `/open-api/mes/personalization/batches/pending` |
 
-### 1.2 Standard Request and Response Format
+### 1.2 Standard Request and Response Specification
 
 #### Standard Request Headers
 
-| Header | Required | Description |
-| --- | --- | --- |
+| Parameter | Required | Description |
+|-----------|----------|-------------|
 | Authorization | Yes | `Bearer {accessToken}` |
-| X-Line-ID | Yes | Unique production line identifier (lineId) |
+| X-Line-ID | Yes | Unique production line identifier `lineId` |
 | Content-Type | Yes | `application/json` |
 
 #### Standard Response Body Structure
@@ -51,49 +50,48 @@
 ```
 
 | Field | Type | Description |
-| --- | --- | --- |
-| code | int | Business status code, **0 indicates success**, non-zero indicates error |
-| msg | string | Status or error description |
-| data | object | Business data, null on failure |
+|-------|------|-------------|
+| code | int | Business status code. **0 indicates success**, other values indicate errors. |
+| msg | string | Status description or error description. |
+| data | object | Business data payload. `null` in case of failure. |
 
-**Error code notes:**
+**Error Code Explanation:**
+- `code = 0`: Business operation successful.
+- `code > 0`: Business exception with custom error code. The `msg` field contains the error description.
 
-- `code = 0`: Business success
-- `code > 0`: Business error, custom error code, with description in `msg`
-
-### 1.3 Business Identifier Specification
+### 1.3 Business Identifier Conventions
 
 | Identifier | Description | Example |
-| --- | --- | --- |
-| lineId | Unique production line ID | LINE_001 |
-| deviceSn | Unique device ID | DEV_LINE001_001 |
+|------------|-------------|---------|
+| lineId | Unique production line identifier | LINE_001 |
+| deviceSn | Unique device identifier | DEV_LINE001_001 |
 | orderSn | Production order number | ORDER20240410001 |
 | planSn | Production task plan number | PLAN20240410001 |
 | batchSn | Batch number (production line level) | BATCH20240410001_LINE001 |
-| businessSn | Unique production data identifier (per card) | BSN2024041000001 |
-| docSn | Document number | B1231341 |
+| businessSn | Unique production data identifier (single card) | BSN2024041000001 |
+| docSn | Document/Certificate number | B1231341 |
 
-**Relationship description:**
+**Relationship Description:**
 
-- One production line (`lineId`) is bound to one device (`deviceSn`)
-- One batch (`batchSn`) corresponds to one production line
-- One batch contains multiple production data items (`businessSn`)
+- One production line (`lineId`) is bound to one device (`deviceSn`).
+- One batch (`batchSn`) corresponds to one production line.
+- One batch contains multiple production data entries (`businessSn`).
 
 ### 1.4 Data Package Type Specification
 
 | dataPathType | Description | Handling Method |
-| --- | --- | --- |
-| S3 | MinIO object storage | Personalization system pulls data using pre-signed URL from MinIO |
-| FTP | FTP file server | Personalization system downloads file from FTP server |
-| LOCAL | Local file system | Personalization system reads file from local path |
+|--------------|-------------|-----------------|
+| S3 | MinIO Object Storage | Personalization system directly uses pre-signed URL to pull from MinIO. |
+| FTP | FTP File Server | Personalization system downloads file from FTP server. |
+| LOCAL | Local File System | Personalization system retrieves file from specified local path. |
 
 ---
 
 ## 2. Authentication API
 
-### 2.1 Get Access Token
+### 2.1 Obtain Access Token
 
-Obtain an access token using Basic authentication. The binding relationship between production line and device is verified during authentication.
+Use Basic Authentication to obtain an access token. The authentication process verifies the binding relationship between the production line and the device.
 
 ```http
 POST /open-api/mes/auth/token
@@ -123,12 +121,12 @@ Content-Type: application/json
 **Parameter Description:**
 
 | Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| lineId | string | Yes | Unique production line identifier |
-| deviceSn | string | Yes | Unique device identifier, must be bound to the production line |
-| deviceInfo.deviceType | string | Yes | Device type |
-| deviceInfo.softwareVersion | string | No | Software version (redundant) |
-| deviceInfo.hardwareVersion | string | No | Hardware version (redundant) |
+|-----------|------|----------|-------------|
+| lineId | string | Yes | Unique production line identifier. |
+| deviceSn | string | Yes | Unique device identifier, must be bound to the production line. |
+| deviceInfo.deviceType | string | Yes | Device type. |
+| deviceInfo.softwareVersion | string | No | Software version number (redundant). |
+| deviceInfo.hardwareVersion | string | No | Hardware version number (redundant). |
 
 **Response Example (Success):**
 
@@ -163,11 +161,11 @@ Content-Type: application/json
 
 ---
 
-## 3. Task Pull API
+## 3. Task Retrieval API
 
-### 3.1 Get Pending Batch List
+### 3.1 Get Batch Task List
 
-Get the list of pending **batch tasks** for the current production line, sorted by priority and creation time.
+Retrieves the list of pending **batch tasks** for the current production line, sorted by priority and creation time.
 
 ```http
 POST /open-api/mes/personalization/batches/pending
@@ -192,8 +190,8 @@ Content-Type: application/json
 **Parameter Description:**
 
 | Parameter | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| limit | int | No | 10 | Number of batches to return, max 50 |
+|-----------|------|----------|---------|-------------|
+| limit | int | No | 10 | Number of batches to return, maximum 50. |
 
 **Response Example (Success):**
 
@@ -210,7 +208,7 @@ Content-Type: application/json
         "planSn": "PLAN20240410001",
         "batchSn": "BATCH20240410001_LINE001",
         "productType": "IDCARD",
-        "productName": "National ID Card",
+        "productName": "Resident ID Card",
         "priority": 1,
         "taskCount": 100,
         "deadline": "2024-04-10T18:00:00Z",
@@ -221,7 +219,7 @@ Content-Type: application/json
         "planSn": "PLAN20240410002",
         "batchSn": "BATCH20240410002_LINE001",
         "productType": "IDCARD",
-        "productName": "National ID Card",
+        "productName": "Resident ID Card",
         "priority": 2,
         "taskCount": 50,
         "deadline": "2024-04-10T20:00:00Z",
@@ -235,22 +233,22 @@ Content-Type: application/json
 **Response Field Description:**
 
 | Field Path | Type | Description |
-| --- | --- | --- |
-| orderSn | string | Production order number |
-| planSn | string | Production task plan number |
-| batchSn | string | Batch number (production line level) |
-| productType | string | Product type |
-| productName | string | Product name |
-| priority | int | Priority, lower number means higher priority |
-| taskCount | int | Number of tasks in this batch |
-| deadline | string | Deadline |
-| createTime | string | Batch creation time |
+|------------|------|-------------|
+| orderSn | string | Production order number. |
+| planSn | string | Production task plan number. |
+| batchSn | string | Batch number (production line level). |
+| productType | string | Product type. |
+| productName | string | Product name. |
+| priority | int | Priority, smaller number indicates higher priority. |
+| taskCount | int | Number of tasks within this batch. |
+| deadline | string | Due date. |
+| createTime | string | Batch creation time. |
 
 ---
 
 ### 3.2 Get Task Details List for a Batch
 
-Get all pending production data details for a batch identified by `batchSn`. **Supports pagination**.
+Retrieves detailed information for all pending production data under a specific batch number (`batchSn`), **supports pagination**.
 
 ```http
 POST /open-api/mes/personalization/batches/tasks
@@ -277,10 +275,10 @@ Content-Type: application/json
 **Parameter Description:**
 
 | Parameter | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| batchSn | string | Yes | - | Batch number |
-| page | int | No | 1 | Page number |
-| pageSize | int | No | 50 | Items per page, max 100 |
+|-----------|------|----------|---------|-------------|
+| batchSn | string | Yes | - | Batch number. |
+| page | int | No | 1 | Page number. |
+| pageSize | int | No | 50 | Number of items per page, maximum 100. |
 
 **Response Example (Success):**
 
@@ -302,7 +300,7 @@ Content-Type: application/json
         "businessSn": "BSN2024041000001",
         "docSn": "CARD20240001",
         "productType": "IDCARD",
-        "productName": "National ID Card",
+        "productName": "Resident ID Card",
         "priority": 1,
         "deadline": "2024-04-10T18:00:00Z",
         "createTime": "2024-04-10T08:00:00Z",
@@ -322,7 +320,7 @@ Content-Type: application/json
         "businessSn": "BSN2024041000002",
         "docSn": "CARD20240002",
         "productType": "IDCARD",
-        "productName": "National ID Card",
+        "productName": "Resident ID Card",
         "priority": 1,
         "deadline": "2024-04-10T18:00:00Z",
         "createTime": "2024-04-10T08:00:00Z",
@@ -342,19 +340,19 @@ Content-Type: application/json
 **dataInfo Field Description:**
 
 | Field Path | Type | Description |
-| --- | --- | --- |
-| dataPathType | string | Data path type: S3/FTP/LOCAL |
-| dataPackageUrl | string | Data package download URL (pre-signed URL or file path) |
-| dataProxyPath | string | Data package proxy path, only LOCAL type; used when network is poor, data package pre-copied to factory |
-| expireTime | string | Download URL expiration time (only for S3/FTP types) |
-| checksum | string | Data package checksum (SHA-256) |
-| size | long | Data package size (bytes) |
+|------------|------|-------------|
+| dataPathType | string | Data path type: S3/FTP/LOCAL. |
+| dataPackageUrl | string | Data package download URL (pre-signed URL or file path). |
+| dataProxyPath | string | Data package proxy address, only for LOCAL type. Used when network is poor, copy data package in advance. |
+| expireTime | string | Download URL expiration time (S3/FTP only). |
+| checksum | string | Data package checksum (SHA-256). |
+| size | long | Data package size (bytes). |
 
 **dataPathType Description:**
 
 | dataPathType | dataPackageUrl Format Example |
-| --- | --- |
-| S3 | `https://minio.example.com/...` (pre-signed URL) |
+|--------------|-------------------------------|
+| S3 | `https://minio.example.com/...` (Pre-signed URL) |
 | FTP | `ftp://ftp.example.com/...` or `ftps://...` |
 | LOCAL | `/data/prepared/BATCH20240410001_LINE001/BSN2024041000001.dat` |
 
@@ -362,9 +360,9 @@ Content-Type: application/json
 
 ## 4. Batch Confirmation API
 
-### 4.1 Confirm Start of Batch Processing
+### 4.1 Confirm Batch Start Processing
 
-Before processing a batch, the personalization system must call this API to confirm the start of the batch. **Confirmation is at batch level, not per businessSn.**
+Before the personalization system starts processing a batch, it must call this API to confirm the batch start. **Confirmation is performed at the batch level, not for individual businessSn.**
 
 ```http
 POST /open-api/mes/personalization/batches/confirm
@@ -394,12 +392,12 @@ Idempotency-Key: {uuid}
 **Parameter Description:**
 
 | Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| batchSn | string | Yes | Batch number (production line level) |
-| confirmTime | string | Yes | Confirmation time (ISO 8601 format) |
-| expectedCompletionTime | string | No | Expected completion time |
-| operatorId | string | No | Operator ID |
-| operatorName | string | No | Operator name |
+|-----------|------|----------|-------------|
+| batchSn | string | Yes | Batch number (production line level). |
+| confirmTime | string | Yes | Confirmation time (ISO 8601 format). |
+| expectedCompletionTime | string | No | Estimated completion time. |
+| operatorId | string | No | Operator ID. |
+| operatorName | string | No | Operator name. |
 
 **Response Example:**
 
@@ -419,21 +417,21 @@ Idempotency-Key: {uuid}
 **Response Field Description:**
 
 | Field | Type | Description |
-| --- | --- | --- |
-| batchSn | string | Batch number |
-| status | string | Batch status: PROCESSING - in progress |
-| confirmTime | string | Confirmation time |
-| updateTime | string | Update time |
+|-------|------|-------------|
+| batchSn | string | Batch number. |
+| status | string | Batch status: PROCESSING. |
+| confirmTime | string | Confirmation time. |
+| updateTime | string | Update time. |
 
 ---
 
 ## 5. Batch Feedback API
 
-### 5.1 Submit Batch Personalization Results
+### 5.1 Submit Batch Card Production Results
 
-After personalization is completed, submit the entire batch's results via this API. **Supports batch submission of the whole batch results, including detailed attempt records and material information.**
+After card production is complete, use this API to submit the results for the entire batch. **Supports submitting results for the whole batch, including detailed attempt records and consumable information.**
 
-> **Note**: Considering batch data volume, this API supports multiple rounds of feedback. The client should implement its own sharding. The server will consider submission complete when it detects that the number of `businessSn` reaches the batch total.
+<span style="color:red">For the batch feedback interface, considering the data volume of a batch, multiple feedback rounds are supported. The client handles sharding logic, and the server considers the submission complete when the count of `businessSn` reaches the batch total.</span>
 
 ```http
 POST /open-api/mes/personalization/batches/feedback
@@ -462,7 +460,7 @@ Idempotency-Key: {uuid}
     "wasteCount": 4,
     "totalAttempts": 105
   },
-
+  
   "results": [
     {
       "businessSn": "BSN2024041000001",
@@ -470,7 +468,7 @@ Idempotency-Key: {uuid}
       "status": "SUCCESS",
       "attemptCount": 1,
       "personalizeTime": "2024-04-10T10:05:00Z",
-
+      
       "attempts": [
         {
           "attemptNo": 1,
@@ -491,7 +489,7 @@ Idempotency-Key: {uuid}
       "status": "SUCCESS",
       "attemptCount": 3,
       "personalizeTime": "2024-04-10T10:35:00Z",
-
+      
       "attempts": [
         {
           "attemptNo": 1,
@@ -514,7 +512,7 @@ Idempotency-Key: {uuid}
           "startTime": "2024-04-10T10:20:00Z",
           "endTime": "2024-04-10T10:23:00Z",
           "errorCode": "ERR_PRINT_QUALITY",
-          "errorMessage": "Print quality不合格",
+          "errorMessage": "Print quality failed",
           "isWaste": true,
           "wasteType": "PRINT_FAILED",
           "materials": [
@@ -535,7 +533,7 @@ Idempotency-Key: {uuid}
           ]
         }
       ],
-
+      
       "wasteSummary": {
         "totalWaste": 2,
         "wasteMaterials": {
@@ -552,51 +550,51 @@ Idempotency-Key: {uuid}
 **Parameter Description:**
 
 | Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| feedbackId | string | Yes | Unique feedback identifier for idempotency |
-| batchSn | string | Yes | Batch number |
-| submitTime | string | Yes | Submission time |
-| summary | object | Yes | Batch summary information |
-| summary.totalCount | int | Yes | Total number in batch |
-| summary.successCount | int | Yes | Number of successes |
-| summary.failCount | int | Yes | Number of failures |
-| summary.wasteCount | int | Yes | Number of waste items |
-| summary.totalAttempts | int | Yes | Total number of attempts |
-| results | array | Yes | List of per-card personalization results |
+|-----------|------|----------|-------------|
+| feedbackId | string | Yes | Unique feedback identifier for idempotency control. |
+| batchSn | string | Yes | Batch number. |
+| submitTime | string | Yes | Submission time. |
+| summary | object | Yes | Batch summary information. |
+| summary.totalCount | int | Yes | Total number in batch. |
+| summary.successCount | int | Yes | Number of successes. |
+| summary.failCount | int | Yes | Number of failures. |
+| summary.wasteCount | int | Yes | Number of wasted items. |
+| summary.totalAttempts | int | Yes | Total number of attempts. |
+| results | array | Yes | List of per-card production results. |
 
 **results Item Field Description:**
 
 | Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| businessSn | string | Yes | Unique production data identifier |
-| docSn | string | Yes | Document number |
-| status | string | Yes | Personalization result: SUCCESS/FAILED |
-| attemptCount | int | Yes | Number of attempts |
-| personalizeTime | string | Yes | Personalization completion time |
-| attempts | array | Yes | Detailed information for each attempt |
-| wasteSummary | object | No | Waste summary (when multiple attempts fail) |
+|-------|------|----------|-------------|
+| businessSn | string | Yes | Unique production data identifier. |
+| docSn | string | Yes | Document/Certificate number. |
+| status | string | Yes | Production result: SUCCESS/FAILED. |
+| attemptCount | int | Yes | Number of attempts. |
+| personalizeTime | string | Yes | Production completion time. |
+| attempts | array | Yes | Detailed information for each attempt. |
+| wasteSummary | object | No | Waste summary information (if multiple attempts failed). |
 
 **attempts Item Field Description:**
 
 | Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| attemptNo | int | Yes | Attempt sequence number |
-| status | string | Yes | Attempt result: SUCCESS/FAILED |
-| startTime | string | Yes | Attempt start time |
-| endTime | string | Yes | Attempt end time |
-| errorCode | string | No | Error code (required on failure) |
-| errorMessage | string | No | Error description (optional on failure) |
-| isWaste | boolean | No | Whether waste was generated |
-| wasteType | string | No | Waste type |
-| materials | array | Yes | Material usage information |
+|-------|------|----------|-------------|
+| attemptNo | int | Yes | Attempt sequence number. |
+| status | string | Yes | Attempt result: SUCCESS/FAILED. |
+| startTime | string | Yes | Attempt start time. |
+| endTime | string | Yes | Attempt end time. |
+| errorCode | string | No | Error code (required on failure). |
+| errorMessage | string | No | Error description (optional on failure). |
+| isWaste | boolean | No | Whether waste was generated. |
+| wasteType | string | No | Waste type. |
+| materials | array | Yes | Consumable usage information. |
 
 **materials Item Field Description:**
 
 | Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| type | string | Yes | Material type: CHIP/PVC/RIBBON |
-| id | string | Yes | Unique material identifier |
-| wasted | boolean | No | Whether scrapped (default false) |
+|-------|------|----------|-------------|
+| type | string | Yes | Consumable type: CHIP/PVC/RIBBON. |
+| id | string | Yes | Unique consumable identifier. |
+| wasted | boolean | No | Whether the consumable was wasted (default false). |
 
 ---
 
@@ -604,7 +602,7 @@ Idempotency-Key: {uuid}
 
 ### 6.1 Report Heartbeat and Status
 
-The personalization system periodically (recommended every 30 seconds) reports heartbeat and current status. The server returns an indicator whether there are new tasks.
+The personalization system reports heartbeat and current status periodically (recommended every 30 seconds). The server responds with an indicator of whether new tasks are available.
 
 ```http
 POST /open-api/mes/personalization/heartbeat
@@ -654,22 +652,21 @@ Content-Type: application/json
 }
 ```
 
-**Key Heartbeat Response Fields:**
+**Heartbeat Response Key Fields:**
 
 | Field | Type | Description |
-| --- | --- | --- |
-| hasNewTask | boolean | Whether there are new tasks pending |
-| newTaskCount | int | Number of new tasks (optional) |
-| nextHeartbeatInterval | int | Recommended next heartbeat interval (seconds) |
+|-------|------|-------------|
+| hasNewTask | boolean | Indicates if new tasks are pending. |
+| newTaskCount | int | Number of new tasks (optional). |
+| nextHeartbeatInterval | int | Suggested interval for the next heartbeat (seconds). |
 
 **Business Logic Description:**
 
-Heartbeat handling logic for the personalization system:
-
-1. Periodically (e.g., every 30 seconds) send a heartbeat request
-2. Check the `hasNewTask` field in the response
-3. If `hasNewTask = true`, immediately call the [3.1 Get Pending Batch List] API to fetch tasks
-4. Process the retrieved task list
+Heartbeat processing logic for the personalization system:
+1. Send heartbeat request periodically (e.g., every 30 seconds).
+2. Check the `hasNewTask` field in the response.
+3. If `hasNewTask = true`, immediately call the **[3.1 Get Batch Task List](#31-get-batch-task-list)** API to retrieve tasks.
+4. Process tasks based on the retrieved list.
 
 ---
 
@@ -677,75 +674,75 @@ Heartbeat handling logic for the personalization system:
 
 ### 7.1 HTTP Status Codes
 
-| Status Code | Description | Handling Suggestion |
-| --- | --- | --- |
-| 200 | Success | Process response normally |
-| 400 | Bad request | Check request parameters against specification |
-| 401 | Unauthorized | Token invalid or expired, re-authenticate |
-| 403 | Forbidden | No permission to access the resource |
-| 404 | Not found | Check resource ID |
-| 409 | Conflict | Resource state conflict |
-| 429 | Too many requests | Rate limited, reduce request frequency |
-| 500 | Internal server error | Server exception, contact administrator |
-| 503 | Service unavailable | Service temporarily unavailable, retry later |
+| Status Code | Description | Suggested Action |
+|-------------|-------------|------------------|
+| 200 | Success | Process response data normally. |
+| 400 | Bad Request | Check request parameters against specification. |
+| 401 | Unauthorized | Token invalid or expired, re-authenticate. |
+| 403 | Forbidden | No permission to access the resource. |
+| 404 | Not Found | Check if the requested resource ID is correct. |
+| 409 | Conflict | Resource status conflict. |
+| 429 | Too Many Requests | Rate limit triggered, reduce request frequency. |
+| 500 | Internal Server Error | Server exception, contact administrator. |
+| 503 | Service Unavailable | Service temporarily unavailable, retry later. |
 
 ### 7.2 Business Error Codes (code > 0)
 
-| Error Code | Description | Handling Suggestion |
-| --- | --- | --- |
-| **Authentication** | | |
-| 10001 | Authentication failed | Check clientId and clientSecret |
-| 10002 | Token expired | Use refreshToken or re-authenticate |
-| 10003 | Invalid token | Re-authenticate |
-| 10004 | Production line not authorized | Contact administrator to configure line permissions |
-| 10005 | Device does not match production line | Check that deviceSn is bound to lineId |
-| **Task related** | | |
-| 20001 | Batch not found | Check batchSn |
-| 20002 | Batch already assigned | Batch occupied by another device, pull other batches |
-| 20003 | Invalid batch state | Operation not allowed in current state |
-| 20004 | Batch timeout | Batch exceeded max processing time, auto-released |
-| 20005 | Batch does not belong to line | Batch not assigned to current production line |
-| **Data file related** | | |
-| 30001 | Data package not found | Check dataPackageUrl or contact administrator |
-| 30002 | Data package download link expired | Re-fetch task details for new download link |
-| 30003 | Data package checksum mismatch | Package may be corrupted, re-download or contact admin |
-| 30004 | Unsupported data path type | Check dataPathType is S3/FTP/LOCAL |
-| **Feedback related** | | |
-| 40001 | Feedback already received | Already processed, do not resubmit |
-| 40002 | Batch identifier not found | Check batchSn |
-| 40003 | Invalid state transition | Cannot update to target state in current state |
-| 40004 | Invalid production result data | Check productionResult field completeness |
+| Error Code | Description | Suggested Action |
+|------------|-------------|------------------|
+| **Authentication Related** |
+| 10001 | Authentication failed | Check clientId and clientSecret. |
+| 10002 | Token expired | Use refreshToken or re-authenticate. |
+| 10003 | Invalid token | Re-authenticate. |
+| 10004 | Production line not authorized | Contact admin to configure line permissions. |
+| 10005 | Device does not match production line | Check if deviceSn is bound to lineId. |
+| **Task Related** |
+| 20001 | Batch does not exist | Check if batchSn is correct. |
+| 20002 | Batch already assigned | Batch is occupied by another device, pull another batch. |
+| 20003 | Illegal batch status | Operation not allowed in current status. |
+| 20004 | Batch timed out | Batch exceeded max processing time, automatically released. |
+| 20005 | Production line mismatch with batch | Batch does not belong to current line. |
+| **Data File Related** |
+| 30001 | Data package does not exist | Check dataPackageUrl or contact admin. |
+| 30002 | Data package download link expired | Re-fetch task details for a new download link. |
+| 30003 | Data package checksum failed | Data may be corrupted, re-download or contact admin. |
+| 30004 | Data path type not supported | Check if dataPathType is S3/FTP/LOCAL. |
+| **Feedback Related** |
+| 40001 | Feedback already received | Duplicate submission detected. |
+| 40002 | Batch identifier does not exist | Check if batchSn is correct. |
+| 40003 | Illegal state transition | Cannot update to target status from current status. |
+| 40004 | Invalid production result data | Check productionResult field integrity. |
 
-### 7.3 Personalization Error Codes (used in errorCode field of feedback)
+### 7.3 Card Production Error Codes (Used in feedback errorCode field)
 
 | Error Code | Category | Description | Retryable | Retry Strategy |
-| --- | --- | --- | --- | --- |
-| ERR_CHIP_WRITE_FAIL | Chip error | Chip write failed | Yes | Replace chip and retry |
-| ERR_CHIP_READ_FAIL | Chip error | Chip read failed | Yes | Re-read |
-| ERR_CHIP_VERIFY_FAIL | Chip error | Chip verification failed | No | Mark as failed |
-| ERR_PRINTER_JAM | Print error | Printer paper jam | Yes | Clear jam and retry |
-| ERR_PRINT_QUALITY | Print error | Print quality不合格 | No | Mark as failed |
-| ERR_CARD_FEED_FAIL | Mechanical error | Card feed failed | Yes | Re-feed card |
-| ERR_CARD_EJECT_FAIL | Mechanical error | Card eject failed | Yes | Manual intervention |
-| ERR_DATA_CHECK_FAIL | Data error | Data validation failed | No | Mark as failed |
-| ERR_DEVICE_OFFLINE | Device error | Device offline | Yes | Retry after device recovery |
+|------------|----------|-------------|-----------|----------------|
+| ERR_CHIP_WRITE_FAIL | Chip Error | Chip write failed | Yes | Replace chip and retry. |
+| ERR_CHIP_READ_FAIL | Chip Error | Chip read failed | Yes | Retry reading. |
+| ERR_CHIP_VERIFY_FAIL | Chip Error | Chip verification failed | No | Mark as failed. |
+| ERR_PRINTER_JAM | Print Error | Printer jam | Yes | Clear jam and retry. |
+| ERR_PRINT_QUALITY | Print Error | Print quality failed | No | Mark as failed. |
+| ERR_CARD_FEED_FAIL | Mechanical Error | Card feed failed | Yes | Retry feeding card. |
+| ERR_CARD_EJECT_FAIL | Mechanical Error | Card eject failed | Yes | Manual intervention required. |
+| ERR_DATA_CHECK_FAIL | Data Error | Data verification failed | No | Mark as failed. |
+| ERR_DEVICE_OFFLINE | Device Error | Device offline | Yes | Retry after device recovers. |
 
 ---
 
 ## 8. Appendix
 
-### 8.1 Complete Business Flow Sequence Diagram
+### 8.1 Complete Business Process Sequence Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         Business Flow                                   │
+│                            Business Process                             │
 └─────────────────────────────────────────────────────────────────────────┘
 
-1. Authenticate and get token
-
+1. Authentication to obtain token
+   
    POST /open-api/mes/auth/token
    Authorization: Basic {base64(clientId:clientSecret)}
-
+   
    Request:
    {
      "lineId": "LINE_001",
@@ -755,9 +752,9 @@ Heartbeat handling logic for the personalization system:
        "softwareVersion": "v2.1.0"
      }
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -769,15 +766,15 @@ Heartbeat handling logic for the personalization system:
        "deviceSn": "DEV_LINE001_001"
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 
-2. Periodically report heartbeat (recommended every 30 sec)
-
+2. Periodic heartbeat reporting (recommended every 30 seconds)
+   
    POST /open-api/mes/personalization/heartbeat
    Authorization: Bearer {accessToken}
    X-Line-ID: LINE_001
-
+   
    Request:
    {
      "lineId": "LINE_001",
@@ -785,9 +782,9 @@ Heartbeat handling logic for the personalization system:
      "status": "IDLE",
      "reportTime": "2024-04-10T10:00:00Z"
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -797,22 +794,22 @@ Heartbeat handling logic for the personalization system:
        "nextHeartbeatInterval": 30
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 
 3. [Conditional] If hasNewTask = true, query pending batch list
-
+   
    POST /open-api/mes/personalization/batches/pending
    Authorization: Bearer {accessToken}
    X-Line-ID: LINE_001
-
+   
    Request:
    {
      "limit": 10
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -830,24 +827,24 @@ Heartbeat handling logic for the personalization system:
        ]
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 
-4. Get task details for a batch (get data package download info)
-
+4. Get task details list for a batch (get data package download info)
+   
    POST /open-api/mes/personalization/batches/tasks
    Authorization: Bearer {accessToken}
    X-Line-ID: LINE_001
-
+   
    Request:
    {
      "batchSn": "BATCH20240410001_LINE001",
      "page": 1,
      "pageSize": 50
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -874,27 +871,27 @@ Heartbeat handling logic for the personalization system:
        ]
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 
 5. Download data package (based on dataPathType)
-
-   Case A: dataPathType = S3
+   
+   Scenario A: dataPathType = S3
    GET https://minio.example.com/prepared-data/...?X-Amz-Algorithm=...
-
-   Case B: dataPathType = FTP
+   
+   Scenario B: dataPathType = FTP
    Use FTP client to download from ftp://ftp.example.com/...
-
-   Case C: dataPathType = LOCAL
+   
+   Scenario C: dataPathType = LOCAL
    Read local file: /data/prepared/BATCH20240410001_LINE001/BSN2024041000001.dat
 
-6. Confirm batch start
-
+6. Confirm batch start processing
+   
    POST /open-api/mes/personalization/batches/confirm
    Authorization: Bearer {accessToken}
    X-Line-ID: LINE_001
    Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
-
+   
    Request:
    {
      "batchSn": "BATCH20240410001_LINE001",
@@ -902,9 +899,9 @@ Heartbeat handling logic for the personalization system:
      "operatorId": "OP001",
      "operatorName": "Operator Zhang San"
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -916,15 +913,15 @@ Heartbeat handling logic for the personalization system:
        "updateTime": "2024-04-10T09:00:01Z"
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 
-7. Periodically report heartbeat during personalization (include current batch)
-
+7. Periodic heartbeat reporting during production (with current batch)
+   
    POST /open-api/mes/personalization/heartbeat
    Authorization: Bearer {accessToken}
    X-Line-ID: LINE_001
-
+   
    Request:
    {
      "lineId": "LINE_001",
@@ -942,9 +939,9 @@ Heartbeat handling logic for the personalization system:
      },
      "reportTime": "2024-04-10T10:30:00Z"
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -953,16 +950,16 @@ Heartbeat handling logic for the personalization system:
        "nextHeartbeatInterval": 30
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 
-8. Submit batch feedback after personalization completion
-
+8. Submit batch feedback after production completion
+   
    POST /open-api/mes/personalization/batches/feedback
    Authorization: Bearer {accessToken}
    X-Line-ID: LINE_001
    Idempotency-Key: 550e8400-e29b-41d4-a716-446655440001
-
+   
    Request:
    {
      "feedbackId": "FB20240410001",
@@ -998,9 +995,9 @@ Heartbeat handling logic for the personalization system:
        }
      ]
    }
-
+   
    ──────────────────────────────────────────────▶
-
+   
    Response:
    {
      "code": 0,
@@ -1019,67 +1016,60 @@ Heartbeat handling logic for the personalization system:
        }
      }
    }
-
+   
    ◀──────────────────────────────────────────────
 ```
 
 ### 8.2 Important Notes
 
 1. **Authentication and Token Management**
-
-   - The first call must authenticate to obtain an `accessToken`
-   - The `accessToken` is valid for 2 hours by default (configurable). Use `refresh_token` before expiration
-   - All business APIs must include `Authorization: Bearer {accessToken}` and `X-Line-ID: {lineId}` headers
-   - Authentication verifies the binding between `lineId` and `deviceSn`
-   - It is recommended to cache the token locally to avoid frequent authentication
+   - First call must perform authentication to obtain `accessToken`.
+   - `accessToken` is valid for 2 hours by default (configurable). Refresh using `refresh_token` before expiration.
+   - All business APIs must include `Authorization: Bearer {accessToken}` and `X-Line-ID: {lineId}` in request headers.
+   - Authentication verifies the binding relationship between `lineId` and `deviceSn`.
+   - Cache tokens locally to avoid frequent authentication.
 
 2. **Heartbeat and Task Listening Mechanism**
-
-   - The personalization system periodically (recommended every 30 seconds) sends heartbeat requests
-   - Check the `hasNewTask` field in the heartbeat response
-   - If `hasNewTask = true`, immediately call the [3.1 Get Pending Batch List] API to fetch batches
-   - Avoid frequent polling of the batch list to reduce server load
+   - Personalization system sends heartbeat requests periodically (recommended every 30 seconds).
+   - Check the `hasNewTask` field in the heartbeat response.
+   - If `hasNewTask = true`, immediately call **[3.1 Get Batch Task List](#31-get-batch-task-list)** API to fetch batches.
+   - Avoid frequent polling of the batch list to reduce server load.
 
 3. **Idempotency Design**
-
-   - Modification APIs (confirm batch start, submit batch feedback, etc.) must include the `Idempotency-Key` header
-   - `Idempotency-Key` should be a UUID, different for each request
-   - The server performs idempotency checks using this key; duplicate requests return the same result
+   - Modifying APIs (Confirm Batch Start, Submit Batch Feedback, etc.) must include the `Idempotency-Key` request header.
+   - It is recommended to use a UUID for `Idempotency-Key`, with a unique value per request.
+   - The server performs idempotency checks based on this key; duplicate requests will return the same result.
 
 4. **Data Package Download Handling**
-
-   - First call the [3.2 Get Task Details List for a Batch] API to get `dataInfo` for each task
+   - First, call **[3.2 Get Task Details List for a Batch](#32-get-task-details-list-for-a-batch)** to obtain `dataInfo` for each task.
    - Choose download method based on `dataPathType`:
-     - `S3`: Download from MinIO using `dataPackageUrl` (pre-signed URL)
-     - `FTP`: Download from FTP server using an FTP client
-     - `LOCAL`: Read file from local path
-   - After download, must verify using `checksum`
-   - Pre-signed URL is valid for 2 hours by default (configurable); re-fetch task details if expired
+     - `S3`: Use `dataPackageUrl` (pre-signed URL) to download from MinIO.
+     - `FTP`: Use an FTP client to download from the FTP server.
+     - `LOCAL`: Read the file from the local path.
+   - Must verify checksum after download.
+   - Pre-signed URLs are valid for 2 hours by default (configurable). Re-fetch task details if expired.
 
 5. **Error Handling Strategy**
+   - Network errors: Exponential backoff retry (1s → 2s → 4s → 8s), up to 5 times.
+   - 401 errors: Token expired, use refresh_token or re-authenticate.
+   - 429 errors: Rate limit triggered, reduce request frequency.
+   - 5xx errors: Server exception, log and alert.
+   - Business errors (code > 0): Handle according to the specific error code.
 
-   - Network errors: Exponential backoff retry (1s → 2s → 4s → 8s), max 5 times
-   - 401 errors: Token expired, use refresh_token or re-authenticate
-   - 429 errors: Rate limited, reduce request frequency
-   - 5xx errors: Server exception, log and alert
-   - Business errors (code > 0): Handle according to error code
-
-6. **Retry Mechanism Description**
-
-   - The same `businessSn` can be retried multiple times after personalization failure
-   - Update `attemptCount` for each retry
-   - On success, report `status: SUCCESS` and the actual `attemptCount`
-   - If still fails after reaching max retries, report `status: FAILED` and mark as final failure
+6. **Retry Mechanism Notes**
+   - Multiple retries are allowed for the same `businessSn` after a production failure.
+   - Update `attemptCount` for each retry.
+   - Report `status: SUCCESS` and the actual `attemptCount` upon successful retry.
+   - If max retries are exhausted, report `status: FAILED` and mark as final failure.
 
 7. **Security Specifications**
-
-   - All APIs must use HTTPS (except FTP)
-   - `clientSecret` and `accessToken` must not be hardcoded; use secure storage
-   - Temporary credentials such as pre-signed URLs and FTP credentials must not be cached or shared
-   - Discarded tokens should be cleaned up promptly
+   - All APIs must use HTTPS (except FTP).
+   - Hardcoding `clientSecret` or `accessToken` is prohibited; use secure storage.
+   - Temporary credentials like pre-signed URLs and FTP credentials must not be cached or distributed.
+   - Discarded tokens should be cleaned up promptly.
 
 ---
 
 **Document Version**: v1.0  
-**Last Updated**: 2024-04-13
+**Update Date**: 2024-04-13
 ```
